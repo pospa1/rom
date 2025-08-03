@@ -1,32 +1,35 @@
 #!/bin/bash
 set -e
 
-MOUNTPOINT="/mnt/usb"
+# ID souboru z Google Disku
+FILE_ID="1_AbYVDeSIKpIizRHaXTb-XjlsQlHSR3u"
+ZIP_FILE="/tmp/data.zip"
+EXTRACT_DIR="/tmp/data"
+EMMCDEV="mmcblk2"  # pokud chceš, můžeš změnit na jiné zařízení
 
-echo "=== Hledám USB disk se zálohou... ==="
-lsblk
+# Kontrola, jestli je nainstalovaný gdown
+if ! command -v gdown &> /dev/null; then
+    echo "gdown není nainstalován. Instaluji..."
+    pip install gdown || pip3 install gdown
+fi
 
-read -p "Zadej zařízení USB (např. sdb1): " USBDEV
+echo "=== Stahuji ZIP ==="
+gdown --fuzzy "https://drive.google.com/file/d/$FILE_ID/view?usp=sharing" -O "$ZIP_FILE"
 
-echo "=== Připojuji USB ==="
-mkdir -p $MOUNTPOINT
-mount /dev/$USBDEV $MOUNTPOINT
+echo "=== Rozbaluji ZIP ==="
+rm -rf "$EXTRACT_DIR"
+unzip -o "$ZIP_FILE" -d "$EXTRACT_DIR"
 
-echo "=== Kontroluji dostupné zařízení eMMC ==="
-lsblk | grep mmcblk
+cd "$EXTRACT_DIR"
 
-read -p "Zadej zařízení eMMC (standartně: mmcblk2): " EMMCDEV
-
-cd $MOUNTPOINT
-
-echo "=== Zapisuji boot0 ==="
+echo "=== Zapisují boot0 ==="
 dd if=emmc-boot0.img of=/dev/${EMMCDEV}boot0 bs=1M
 
-echo "=== Zapisuji boot1 ==="
+echo "=== Zapisují boot1 ==="
 dd if=emmc-boot1.img of=/dev/${EMMCDEV}boot1 bs=1M
 
-echo "=== Zapisuji hlavní oblast eMMC ==="
+echo "=== Zapisují hlavní oblast eMMC ==="
 dd if=emmc-backup.img of=/dev/$EMMCDEV bs=4M status=progress
-read -p "eMMC zapsán, zmáčkni Enter pro Dokončení..."
 
-echo "✅ Zápis dokončen! Můžeš Restartovat box a poté odpojit USB/SD!"
+echo "=== Hotovo! eMMC úspěšně zapsáno. ==="
+echo "!!! PO REBOOTU NUTNÝ FACTORY RESET !!!"
